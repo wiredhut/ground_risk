@@ -54,7 +54,7 @@
 		<select name="zones" id="zones"></select>
 		<p>
 		<label for="date">Date:</lable>
-		<input type="text" name="date" id="date" value="">
+		<input type="text" name="date" id="date" value="" disabled>
 		</p>
 		<label for="max_value">Max legend value:</label>
 		<input type="number" id="max_value" name="max_value" value="25" disabled>
@@ -80,7 +80,7 @@
 			"dateFormat":"YYYY-MM-DDThh:mm",
 			"inline":true,
 			"minuteInterval": 60,
-			"minDate": new Date()
+			"minDate": new Date(new Date().setHours(0,0,0,0))
 		});
 		});
 
