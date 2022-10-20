@@ -2,7 +2,7 @@
 <html>
 <head>
 	<title>
-		SWIP-DEMO
+		Ground Risk Demo
 	</title>
 
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
@@ -44,7 +44,7 @@
     
     <div id='description'>
       <div class="tab">
-        <div class="tablinks" onclick="openTab(event,'project')" id="defaultOpen"> SWIP DEMO</div>
+        <div class="tablinks" onclick="openTab(event,'project')" id="defaultOpen"> GROUND RISK DEMO</div>
         <button id="closeButton" class="tablinks" onclick="toggleDescription(false)">
           <img src="./src/close.svg" style="width:33px;height:28px;">
         </button>
@@ -296,12 +296,10 @@
 		zone_dropdown.prop('selectedIndex', 0);
 
 		const url = host+'/api/zones/'
-		$.getJSON(url, function (data) {
-			$.each(data, function (key, entry) {
-				zone_dropdown.append($('<option></option>').attr('value', entry['id']).text(entry['id']));
-			})
+		$.each([{'id':44}, {'id':50}], function (key, entry) {
+			zone_dropdown.append($('<option></option>').attr('value', entry['id']).text(entry['id']));
 		});
-		
+	
 		$('#zones').on('change', function(){
 			//get zone geometry
 			const query = host+`/api/zones/${this.value}`;
