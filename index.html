@@ -57,7 +57,7 @@
 		<input type="text" name="date" id="date" value="">
 		</p>
 		<label for="max_value">Max legend value:</label>
-		<input type="number" id="max_value" name="max_value" value="500">
+		<input type="number" id="max_value" name="max_value" value="25" disabled>
 		<div id="loading"></div>
       </div>
     </div>
@@ -79,7 +79,8 @@
 		$('*[name=date]').appendDtpicker({
 			"dateFormat":"YYYY-MM-DDThh:mm",
 			"inline":true,
-			"minuteInterval": 60
+			"minuteInterval": 60,
+			"minDate": new Date()
 		});
 		});
 
