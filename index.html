@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>
+		SWIP-DEMO
+	</title>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
+   integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ=="
+   crossorigin=""/>
+
+	<!-- JQuery-->
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+	<!-- data picker -->
+	<script src="jquery.simple-dtpicker.js"></script>
+	<link type="text/css" href="jquery.simple-dtpicker.css" rel="stylesheet" />
+
+   <!-- Make sure you put this AFTER Leaflet's CSS -->
+   <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"
+   integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ=="
+   crossorigin=""></script>
+
+
+   <link rel="stylesheet" type="text/css" href="main.css">
+   
+   <link href="https://fonts.googleapis.com/css?family=Noto+Sans:400,400i,700,700i&amp;subset=cyrillic"
+          rel="stylesheet">
+
+	<script src="heatmap.js"></script>
+	<script src="leaflet-heatmap.js"></script>
+	<script src="wiket.js"></script>
+	<script src="rainbowvis.js"></script>
+
+	<script src="https://unpkg.com/leaflet-tilelayer-swiss@2.0.1/dist/Leaflet.TileLayer.Swiss.umd.js" crossorigin
+        integrity="sha384-QQS8FVB6RhNfzlOqzJV3/V4P6YNJSs49djuAoMAh2NJ5BNaYxPCC1t14fwtcg90/"></script> 
+
+</head>
+<body>
+	<div class="headerInfo" onclick="toggleDescription(true)">
+    	<div class='header'>SWIP DEMO</div>
+    	<div class='project_info' onclick="toggleDescription(true)"><img src="./src/info.svg" style="width:35px;height:35px;center"></div>
+    </div>
+    
+    <div id='description'>
+      <div class="tab">
+        <div class="tablinks" onclick="openTab(event,'project')" id="defaultOpen"> SWIP DEMO</div>
+        <button id="closeButton" class="tablinks" onclick="toggleDescription(false)">
+          <img src="./src/close.svg" style="width:33px;height:28px;">
+        </button>
+      </div>
+      <div id="project" class="tabcontent">
+		<label for="zones">Zone:</label>
+		<select name="zones" id="zones"></select>
+		<p>
+		<label for="date">Date:</lable>
+		<input type="text" name="date" id="date" value="">
+		</p>
+		<label for="max_value">Max legend value:</label>
+		<input type="number" id="max_value" name="max_value" value="500">
+		<div id="loading"></div>
+      </div>
+    </div>
+
+    <div id="map" style="height: 100vh; width: 100vw; z-index: 0"></div>
+
+
+	<div id="heatmapLegend">
+		<h2>People Density Legend</h2>
+		<span id="min"></span>
+		<span id="max"></span>
+		<img id="gradient" src="" style="width:100%" />
+	</div>
+
+	<script>
+	  var host = "https://swip.wiredhut.com";
+	
+	  $(function(){
+		$('*[name=date]').appendDtpicker({
+			"dateFormat":"YYYY-MM-DDThh:mm",
+			"inline":true,
+			"minuteInterval": 60
+		});
+		});
+
+		// we want to display the gradient, so we have to draw it
+        var legendCanvas = document.createElement('canvas');
+        legendCanvas.width = 100;
+        legendCanvas.height = 10;
+
+        var legendCtx = legendCanvas.getContext('2d');
+        var gradientCfg = {};
+
+		
+		function updateLegend(data) {
+          // the onExtremaChange callback gives us min, max, and the gradientConfig
+          // so we can update the legend
+          document.getElementById('min').innerHTML = data.min;
+          document.getElementById('max').innerHTML = $("#max_value").val();
+
+          // regenerate gradient image
+          if (data.gradient != gradientCfg) {
+            gradientCfg = data.gradient;
+            var gradient = legendCtx.createLinearGradient(0, 0, 100, 1);
+            for (var key in gradientCfg) {
+              gradient.addColorStop(key, gradientCfg[key]);
+            }
+
+            legendCtx.fillStyle = gradient;
+            legendCtx.fillRect(0, 0, 100, 10);
+            document.getElementById('gradient').src = legendCanvas.toDataURL();
+          }
+        };
+
+		var cfg = {
+			// radius should be small ONLY if scaleRadius is true (or small radius is intended)
+			// if scaleRadius is false it will be the constant radius used in pixels
+			"radius": 0.000015,
+			"maxOpacity": .8,
+			// scales the radius based on map zoom
+			"scaleRadius": true,
+			// if set to false the heatmap uses the global maximum for colorization
+			// if activated: uses the data maximum within the current map boundaries
+			//   (there will always be a red spot with useLocalExtremas true)
+			"useLocalExtrema": false,
+			// which field name in your data represents the latitude - default "lat"
+			latField: 'x',
+			// which field name in your data represents the longitude - default "lng"
+			lngField: 'y',
+			// which field name in your data represents the data value - default "value"
+			valueField: 'predicted',
+			onExtremaChange: function onExtremaChange(data) {
+				updateLegend(data);
+			}
+		};
+		
+											
+	</script>
+
+	 <script type="text/javascript">
+
+	 	livehoods_style = 'mapbox://styles/artemkonuchovwiredhut/cl1j7more00lf14o300x3xmvi';
+	 	
+		var accessToken = 'pk.eyJ1IjoiYXJ0ZW1rb251Y2hvdndpcmVkaHV0IiwiYSI6ImNsMWo3amg3czBtMmUzYnFsNHFhMHZiMWQifQ.sWe8oS5qb0EfQeDd-oq_hQ';
+
+		var map = L.map('map', {crs: L.CRS.EPSG21781, maxZoom:25});
+ 
+		var current_style = livehoods_style;
+
+		var swissLayer = L.tileLayer.swiss({ crs: L.CRS.EPSG21781 }).addTo(map);
+		
+
+		map.setView(L.CRS.EPSG21781.unproject(L.point(682170.102908364962786, 250069.716387805819977)), 18);
+
+		//gradient
+		
+		function create_rainbow(){
+			var max_value = $("#max_value").val();
+			
+			var rainbow = new Rainbow(); 
+			rainbow.setNumberRange(1, max_value);
+			rainbow.setSpectrum('blue', 'green', 'yellow', 'red');
+
+			
+
+			return rainbow;
+		}
+
+		function update_rainbow_range(rainbow, max_value){
+			rainbow.setNumberRange(1, max_value);
+		}
+
+		var rainbow = create_rainbow();
+		var max_value = $("#max_value").val();
+		document.getElementById('max').innerHTML = max_value;
+		
+
+		L.control.zoom({
+		     position:'bottomright'
+		}).addTo(map);
+
+		var heatmapLayer = new HeatmapOverlay(cfg);
+
+		map.addLayer(heatmapLayer); 
+		
+
+		const loader = document.querySelector("#loading")
+		
+		//show loading
+		function displayLoading() {
+			loader.classList.add("display")
+		}
+
+		//hiding loading
+		function hideLoading() {
+			loader.classList.remove("display");
+		}
+
+		function get_grid(lv03_data) {
+			rectangles = []
+			for (let i in lv03_data) {
+				data = lv03_data[i];
+				ll = L.CRS.EPSG21781.unproject(L.point(data['x'], data['y']));
+				ur = L.CRS.EPSG21781.unproject(L.point(data['x']+100, data['y']+100));
+				
+				rect = get_rectangle(ll, ur, data['predicted']);
+				rectangles.push(rect)
+			}
+
+			return L.layerGroup(rectangles)
+		}
+
+		function get_rectangle(ll, ur, value) {
+			var bounds = [[ll['lat'], ll['lng']], [ur['lat'], ur['lng']]];
+
+			
+			var hexColor = '#' + rainbow.colourAt(value);
+			
+			rectangle =  L.rectangle(bounds, {color: hexColor, opacity:0.8, weight: 1, fill:true, fillColor: hexColor, fillOpacity: 0.8});
+			rectangle.bindPopup(value.toString());
+
+			return rectangle
+		}
+
+		let grid = null;
+		let forecast_json = null;
+
+		function update_forecast() {
+			var zone = $("#zones").val();
+			var datetime = $('*[name=date]').val()
+			if (zone) {
+				displayLoading();
+				const query = host+`/api/forecast?zone_id=${zone}&datetime=${datetime}&model=simple`;
+				fetch(query)
+					.then(response => response.json())
+					.then((json) => {
+						forecast_json = json
+						if (grid != null) {
+							map.removeLayer(grid)
+						}
+						grid = get_grid(forecast_json)
+						grid.addTo(map)
+						hideLoading();
+					})
+				}
+		}
+
+		$("#max_value").on('change', function(){
+			var max_value = $("#max_value").val();
+
+			document.getElementById('max').innerHTML = max_value;
+
+			update_rainbow_range(rainbow, max_value);
+			if(grid != null) {
+				map.removeLayer(grid)
+			}
+			if (forecast_json != null){
+				grid = get_grid(forecast_json);
+				grid.addTo(map);
+			}
+		})
+
+		$('*[name=date]').on('change', function(){
+			update_forecast(this.value);
+		});
+
+		function toggleDescription(show) {
+		  if(show) { description.style.left="0"; }
+		  else { description.style.left="-100%"; }
+		}
+
+
+		function openTab(evt,tabName) {
+		      var i, tabcontent, tablinks;
+		      tabcontent = document.getElementsByClassName("tabcontent");
+		      for (i = 0; i < tabcontent.length; i++) {
+		          tabcontent[i].style.display = "none";
+		      }
+		      tablinks = document.getElementsByClassName("tablinks");
+		    for (i = 0; i < tablinks.length; i++) {
+		        tablinks[i].className = tablinks[i].className.replace(" active", "");
+		    }
+		    document.getElementById(tabName).style.display = "block";
+		    evt.currentTarget.className += " active";
+		}
+
+	 </script>
+
+	
+	<script type="text/javascript">
+		//Fill zone dropdown with
+		let zone_dropdown = $("#zones")
+		zone_dropdown.empty();
+		zone_dropdown.append('<option selected="true" disabled>Choose zone</option>');
+		zone_dropdown.prop('selectedIndex', 0);
+
+		const url = host+'/api/zones/'
+		$.getJSON(url, function (data) {
+			$.each(data, function (key, entry) {
+				zone_dropdown.append($('<option></option>').attr('value', entry['id']).text(entry['id']));
+			})
+		});
+		
+		$('#zones').on('change', function(){
+			//get zone geometry
+			const query = host+`/api/zones/${this.value}`;
+			$.getJSON(query, function(data){
+				var wkt = new Wkt.Wkt()
+				polygon = wkt.read(data['geom'])
+				first_component = polygon.components[0][0]
+				map.setView(L.CRS.EPSG21781.unproject(L.point(first_component['x'], first_component['y'])), 18);
+			})
+
+			update_forecast();
+		});
+
+	</script>
+
+
+</body>
+</html>
