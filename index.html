@@ -8,10 +8,15 @@
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
    integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ=="
    crossorigin=""/>
+   
 
 	<!-- JQuery-->
 	<script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 
+	<!-- W3 -->
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> 
+	
 	<!-- data picker -->
 	<script src="jquery.simple-dtpicker.js"></script>
 	<link type="text/css" href="jquery.simple-dtpicker.css" rel="stylesheet" />
@@ -37,8 +42,36 @@
 
 </head>
 <body>
+	<!-- START AUTH FORM-->
+	<div id="modal__background" class="modal__background w3-modal">
+		<div class="modal__window">
+	
+			<form id="auth-form" class="auth-form" name="form-auth" method="post">
+	
+				<label class="auth-form__label">
+					<span class="auth-form__placeholder">email</span>
+					<input class="auth-form__input input-email" type="email" name="email" autocomplete="off" required>
+				</label>
+	
+				<label class="auth-form__label">
+					<span class="auth-form__placeholder">password</span>
+					<input class="auth-form__input input-password" type="password" name="password" autocomlete="off" required>
+					<div class="auth-form__toggler">
+						<i class="la la-eye auth-form__icon"></i>
+						<input type="checkbox" class="auth-form__checkbox password-toggler">
+					</div>
+				</label>
+	
+				<div class="auth-form__answer"></div>
+	
+				<input class="auth-form__submit" type="submit" value="Login">
+			</form>
+	
+		</div>
+	</div>
+	<!-- END AUTH FORM-->
 	<div class="headerInfo" onclick="toggleDescription(true)">
-    	<div class='header'>SWIP DEMO</div>
+    	<div class='header'>GROUND RISK DEMO</div>
     	<div class='project_info' onclick="toggleDescription(true)"><img src="./src/info.svg" style="width:35px;height:35px;center"></div>
     </div>
     
@@ -58,6 +91,26 @@
 		</p>
 		<label for="max_value">Max legend value:</label>
 		<input type="number" id="max_value" name="max_value" value="25" disabled>
+		
+		<h3>Events</h3>
+		<table id="eventsTable" class="w3-table-all">
+			<thead>
+				<tr>
+					<th>Event name</th>
+					<th>Start</th>
+					<th>End</th>
+					<th>Delete</th>
+				</tr>
+			</thead>
+			<tbody id="eventsTableBody"></tbody>
+		</table>
+
+		<div style="margin-top:2vh ;">
+			<label for="fileupload">Add event:</label>
+			<input id="fileupload" type="file" name="fileupload" />
+			<button id="upload-button" onclick="uploadEventFile()"> Upload </button>
+		</div>
+		
 		<div id="loading"></div>
       </div>
     </div>
@@ -73,14 +126,250 @@
 	</div>
 
 	<script>
-	  var host = "https://swip.wiredhut.com";
-	
+	  var host = "https://datahub.sbcdc.ch/swip";
+		
+		/* AUTH FORM */
+		window.onload = function() {
+			(function() {
+				const inputText = document.querySelectorAll('.auth-form__input');
+
+				inputText.forEach( function(input) {
+					input.addEventListener('focus', function() {
+						this.classList.add('focus');
+						this.parentElement.querySelector('.auth-form__placeholder').classList.add('focus');
+					});
+					input.addEventListener('blur', function() {
+						this.classList.remove('focus');
+						if (! this.value) {
+							this.parentElement.querySelector('.auth-form__placeholder').classList.remove('focus');
+						}
+					});
+				});
+			})();
+
+			(function() {
+				const togglers = document.querySelectorAll('.password-toggler');
+
+				togglers.forEach( function(checkbox) {
+					checkbox.addEventListener('change', function() {
+
+						const toggler = this.parentElement,
+							input   = toggler.parentElement.querySelector('.input-password'),
+							icon    = toggler.querySelector('.auth-form__icon');
+
+						if (checkbox.checked) {
+							input.type = 'text';
+							icon.classList.remove('la-eye')
+							icon.classList.add('la-eye-slash');
+						}
+
+						else
+						{
+							input.type = 'password';
+							icon.classList.remove('la-eye-slash')
+							icon.classList.add('la-eye');
+						}
+					});
+				});
+			})();
+
+			getEvents();
+		};
+
+		function getCookie(cname) {
+			let name = cname + "=";
+			let decodedCookie = decodeURIComponent(document.cookie);
+			let ca = decodedCookie.split(';');
+			for(let i = 0; i <ca.length; i++) {
+				let c = ca[i];
+				while (c.charAt(0) == ' ') {
+				c = c.substring(1);
+				}
+				if (c.indexOf(name) == 0) {
+				return c.substring(name.length, c.length);
+				}
+			}
+			return "";
+		}
+
+		function setCookie(cname, cvalue, exdays) {
+			const d = new Date();
+			d.setTime(d.getTime() + (exdays*24*60*60*1000));
+			let expires = "expires="+ d.toUTCString();
+			document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+		}
+
+		function get_zones(){
+			var url = host + '/api/zones'
+
+			var swip_access_token = getCookie('access_token')
+			if (swip_access_token != "") {
+				fetch(url, {
+					method: 'GET',
+					headers:{
+						'Authorization': 'Bearer ' + swip_access_token
+					},
+				})
+				.then(response => response.json())
+				.then((data) => {
+						data.forEach(function(item){
+							zone_dropdown.append($('<option></option>').attr('value', item['id']).text(item['id']));
+						})
+					})
+			}
+		}
+
+
+		function checkAccessToken() {
+			var accessToken = getCookie("access_token")
+			if (accessToken != "") {
+				document.getElementById("modal__background").style.display='none';
+				getEvents();
+				get_zones();
+			}
+		}
+
+		async function deleteEvent(event_index){
+			var table = document.getElementById("eventsTableBody")
+			var event_name = table.rows[event_index].cells[0].textContent
+			
+			//fetch delete event
+			const access_token = getCookie("access_token")
+			if (access_token != "") {
+				const url = host + `/api/heatmaps/events/${event_name}`
+
+				fetch(url, {
+					method: "DELETE",
+					headers: {
+						'Authorization': 'Bearer ' + access_token
+					}
+				})
+				.then((response) => {
+					if(response.ok){
+						table.deleteRow(event_index)
+						update_forecast()
+					}
+				})
+			}
+		}
+
+		async function getEvents() {
+			const access_token = getCookie("access_token")
+			if (access_token != ""){
+				const url = host + "/api/heatmaps/events"
+
+				fetch(url, {
+					method: "GET",
+					headers: {
+						'Authorization': 'Bearer ' + access_token
+					}
+				})
+				.then((response) => response.json())
+				.then((result) => {
+					$("#eventsTable tbody tr").remove()
+					var table = document.getElementById("eventsTableBody")
+					for (var index in result){
+						var row = table.insertRow(-1) ;
+						
+						var nameCell = row.insertCell(0);
+						var startCell = row.insertCell(1);
+						var endCell = row.insertCell(2);
+						var delCell = row.insertCell(3);
+
+						var event = result[index]
+
+						nameCell.innerHTML = event['event_name'];
+						startCell.innerHTML = event['start'];
+						endCell.innerHTML = event['end'];
+						delCell.innerHTML = `<a onclick=deleteEvent(${index})><i class="fa fa-trash" style="font-size:2em"></i></a>`
+					}
+					
+				})
+			}
+		}
+
+
+		async function uploadEventFile() {
+			const acces_token = getCookie("access_token")
+			if (acces_token != ""){
+				let formData = new FormData()
+				formData.append("file", fileupload.files[0])
+
+				const url = host + "/api/heatmaps/events/uploadfile"
+				fetch(url, {
+					method: 'POST',
+					headers:{
+						'Authorization': 'Bearer ' + acces_token
+					},
+					body: formData
+				})
+				.then((response) => {
+					if (response.ok) {
+						return response.json();
+					}
+					return response.json().then(error => {
+						alert(JSON.stringify(error))
+					} )
+				})
+				.then((result) => {
+					getEvents();
+					update_forecast();
+				})
+			}
+		}
+
+		checkAccessToken();
+
+		
+
+	  const auth_form = document.getElementById("auth-form");
+
+	  
+	  auth_form.addEventListener("submit", function(e){
+		e.preventDefault();
+
+		const placeholders = document.querySelectorAll('.auth-form__placeholder');
+		const answerContainer = this.querySelector('.auth-form__answer');
+
+		fetch(host+'/api/token/', {
+			method: 'POST',
+			headers:{
+			'Content-Type': 'application/x-www-form-urlencoded'
+			},    
+			body: new URLSearchParams({
+				'username': this.elements.email.value,
+				'password': this.elements.password.value,
+			})
+		})
+		.then(
+			(response) => {
+				if (!response.ok){
+					placeholders.forEach(function(placeholder) {
+						placeholder.classList.remove('focus');
+					});
+					this.elements.email.value = '';
+					this.elements.password.value = '';
+					answerContainer.innerHTML = '<span class="text-danger">Invalid email or password</span>';
+				}
+				else {
+					return response.json()
+				}
+	  		})
+		.then((json) => {
+			var access_token = json['access_token']
+			setCookie("access_token", access_token, 7)
+			checkAccessToken();
+		});
+		
+	  })
+	  
+
 	  $(function(){
 		$('*[name=date]').appendDtpicker({
 			"dateFormat":"YYYY-MM-DDThh:mm",
 			"inline":true,
-			"minuteInterval": 60,
-			"minDate": new Date(new Date().setHours(0,0,0,0))
+			"minDate": new Date(new Date().setHours(0,0,0,0)),
+			"minuteInterval": 30
 		});
 		});
 
@@ -204,21 +493,35 @@
 				ll = L.CRS.EPSG21781.unproject(L.point(data['x'], data['y']));
 				ur = L.CRS.EPSG21781.unproject(L.point(data['x']+100, data['y']+100));
 				
-				rect = get_rectangle(ll, ur, data['predicted']);
+				rect = get_rectangle(ll, ur, data);
 				rectangles.push(rect)
 			}
 
 			return L.layerGroup(rectangles)
 		}
 
-		function get_rectangle(ll, ur, value) {
+		function get_rectangle(ll, ur, data) {
 			var bounds = [[ll['lat'], ll['lng']], [ur['lat'], ur['lng']]];
 
 			
-			var hexColor = '#' + rainbow.colourAt(value);
+			var hexColor = '#' + rainbow.colourAt(data['score']);
 			
 			rectangle =  L.rectangle(bounds, {color: hexColor, opacity:0.8, weight: 1, fill:true, fillColor: hexColor, fillOpacity: 0.8});
-			rectangle.bindPopup(value.toString());
+			
+			console.log(data)
+			pop_data = {
+				"tileId": data['tileId'],
+			}
+			if ('event_name' in data){
+				pop_data['event'] = data['event_name']
+			}
+
+			pops = []
+			for (key in pop_data) {
+				pops.push(`${key}:${pop_data[key]}`)
+			}
+			pop_string = pops.join('</br>')
+			rectangle.bindPopup(pop_string, {maxWidth:500});
 
 			return rectangle
 		}
@@ -226,25 +529,108 @@
 		let grid = null;
 		let forecast_json = null;
 
-		function update_forecast() {
-			var zone = $("#zones").val();
-			var datetime = $('*[name=date]').val()
-			if (zone) {
-				displayLoading();
-				const query = host+`/api/forecast?zone_id=${zone}&datetime=${datetime}&model=simple`;
-				fetch(query)
+		function get_forecast(zone_id, datetime){
+			const query = host+`/api/heatmaps/hourly/forecast?zone_id=${zone_id}&datetime=${datetime}&model=simple`;
+			var swip_access_token = getCookie("access_token")
+			if (swip_access_token != ""){
+				return fetch(query,{
+						method: 'GET',
+						headers:{
+							'Authorization': 'Bearer ' + swip_access_token
+						},
+					})
 					.then(response => response.json())
 					.then((json) => {
-						forecast_json = json
-						if (grid != null) {
-							map.removeLayer(grid)
-						}
-						grid = get_grid(forecast_json)
-						grid.addTo(map)
-						hideLoading();
-					})
-				}
+						var forecast = {}
+						json.forEach(function(item){
+							forecast[item['tile_id']] = {
+								"tileId": item['tile_id'],
+								"x": item["x"],
+								"y": item["y"],
+								"score": item["score"]
+							}
+						})
+						return forecast
+						});
+			}
 		}
+
+		function get_events(datetime){
+			const query = host+`/api/heatmaps/events/${datetime}`;
+			var swip_access_token = getCookie("access_token")
+			if (swip_access_token != "") {
+			return fetch(query,{
+					method: 'GET',
+					headers:{
+						'Authorization': 'Bearer ' + swip_access_token
+					},
+				})
+				.then(response => response.json())
+				.then((json) => {	
+					var events = {}
+					json.forEach(function(item){
+						events[item['tile_id']] = item
+					})
+					return events
+				})
+			}
+		}
+
+		function get_last_record_datetime(zone_id){
+			var access_token = getCookie("access_token")
+			const query = host + `/api/heatmaps/hourly/last?zone_id=${zone_id}`
+			if (access_token != "") {
+				return fetch(query, {
+					method: 'GET',
+					headers: {
+						'Authorization': 'Bearer ' + access_token
+					}
+				})
+				.then((response) => response.json())
+				.then((json) => {
+					return json['last_datetime']
+				})
+			}
+		}
+		
+		function update_forecast() {
+			var zone_id = $("#zones").val();
+			var datetime = $('*[name=date]').val()
+			
+			swip_access_token = getCookie("access_token")
+
+			if (zone_id && swip_access_token) {
+				displayLoading();
+				
+				get_forecast(zone_id, datetime).then(
+					(forecast_data) => {
+						get_events(datetime).then(
+							(events_data) => {
+								
+								for (const forecast_key in forecast_data){
+									var event_in_forecast = events_data[forecast_key]
+									if (event_in_forecast) {
+										forecast_data[forecast_key]['score'] = event_in_forecast['score']
+										forecast_data[forecast_key]['event'] = event_in_forecast['event_name']
+									}
+								}
+								console.log(forecast_data)
+								forecast_json = Object.values(forecast_data)
+
+								if (grid != null) {
+									map.removeLayer(grid)
+								}
+								grid = get_grid(forecast_json)
+								grid.addTo(map)
+								hideLoading();
+							}
+						)
+					}
+				)
+			}
+		}
+				
+		
 
 		$("#max_value").on('change', function(){
 			var max_value = $("#max_value").val();
@@ -259,6 +645,7 @@
 				grid = get_grid(forecast_json);
 				grid.addTo(map);
 			}
+
 		})
 
 		$('*[name=date]').on('change', function(){
@@ -295,22 +682,32 @@
 		zone_dropdown.append('<option selected="true" disabled>Choose zone</option>');
 		zone_dropdown.prop('selectedIndex', 0);
 
-		const url = host+'/api/zones/'
-		$.each([{'id':44}, {'id':50}], function (key, entry) {
-			zone_dropdown.append($('<option></option>').attr('value', entry['id']).text(entry['id']));
-		});
-	
+		const url = host+'/api/zones'
+		
+		
+		
 		$('#zones').on('change', function(){
 			//get zone geometry
-			const query = host+`/api/zones/${this.value}`;
-			$.getJSON(query, function(data){
-				var wkt = new Wkt.Wkt()
-				polygon = wkt.read(data['geom'])
-				first_component = polygon.components[0][0]
-				map.setView(L.CRS.EPSG21781.unproject(L.point(first_component['x'], first_component['y'])), 18);
-			})
+			const url = host+`/api/zones/${this.value}`
+			var swip_access_token = getCookie('access_token')
+			if (swip_access_token != "") {
+				fetch(url, {
+					method: 'GET',
+					headers:{
+						'Authorization': 'Bearer ' + swip_access_token
+					},
+				})
+				.then(response => response.json())
+				.then((data) => {
+						
+						var wkt = new Wkt.Wkt()
+						polygon = wkt.read(data['geom'])
+						first_component = polygon.components[0][0]
+						map.setView(L.CRS.EPSG21781.unproject(L.point(first_component['x'], first_component['y'])), 18);
+					});
 
-			update_forecast();
+				update_forecast();
+			}
 		});
 
 	</script>
