@@ -176,6 +176,10 @@
 			getEvents();
 		};
 
+		function isFloat(n){
+			return Number(n) === n && n % 1 !== 0;
+		}
+
 		function getCookie(cname) {
 			let name = cname + "=";
 			let decodedCookie = decodeURIComponent(document.cookie);
@@ -508,9 +512,10 @@
 			
 			rectangle =  L.rectangle(bounds, {color: hexColor, opacity:0.8, weight: 1, fill:true, fillColor: hexColor, fillOpacity: 0.8});
 			
-			console.log(data)
+			
 			pop_data = {
 				"tileId": data['tileId'],
+				"score": data['score']
 			}
 			if ('event_name' in data){
 				pop_data['event'] = data['event_name']
@@ -518,7 +523,24 @@
 
 			pops = []
 			for (key in pop_data) {
-				pops.push(`${key}:${pop_data[key]}`)
+				let value = pop_data[key]
+				
+
+				if (pop_data[key] == -1){
+					value = "No data"
+				}
+				if (isFloat(pop_data[key])){
+					value = pop_data[key].toFixed(3)
+				}
+				if (Array.isArray(pop_data[key])){
+					value = pop_data[key].map(function(x){
+						if (isFloat(x)){
+							return x.toFixed(3)
+						}
+						return x
+					})
+				}
+				pops.push(`${key}:${value}`)
 			}
 			pop_string = pops.join('</br>')
 			rectangle.bindPopup(pop_string, {maxWidth:500});
@@ -614,12 +636,13 @@
 										forecast_data[forecast_key]['event'] = event_in_forecast['event_name']
 									}
 								}
-								console.log(forecast_data)
+							
 								forecast_json = Object.values(forecast_data)
 
 								if (grid != null) {
 									map.removeLayer(grid)
 								}
+								
 								grid = get_grid(forecast_json)
 								grid.addTo(map)
 								hideLoading();
